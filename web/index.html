@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KDP Niche Finder</title>
+<link rel="stylesheet" href="/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">📚</span><div><b>KDP Niche Finder</b><small>Amazon niche research, end to end</small></div></div>
+  <div class="topbar-actions">
+    <span id="sourceBadge" class="badge hidden"></span>
+    <button id="helpBtn" class="ghost">Help</button>
+  </div>
+</header>
+
+<section class="searchbar">
+  <div class="field grow">
+    <label for="seed">Seed keyword or niche</label>
+    <input id="seed" type="text" placeholder="e.g. gratitude journal, sudoku, coloring book for kids" autocomplete="off">
+  </div>
+  <div class="field">
+    <label for="market">Marketplace</label>
+    <select id="market"></select>
+  </div>
+  <div class="field">
+    <label for="store">Store</label>
+    <select id="store">
+      <option value="print">Paperback / Print</option>
+      <option value="kindle">Kindle eBooks</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="breadth">Depth</label>
+    <select id="breadth">
+      <option value="narrow">Fast (seed only)</option>
+      <option value="normal" selected>Normal (A–L + modifiers)</option>
+      <option value="wide">Wide (full alphabet soup)</option>
+    </select>
+  </div>
+  <div class="field small">
+    <label for="limit">Keywords</label>
+    <input id="limit" type="number" min="1" max="120" value="25">
+  </div>
+  <button id="searchBtn" class="primary">Find niches</button>
+</section>
+
+<section class="options">
+  <label class="check"><input type="checkbox" id="deep"> Deep scan (read product pages for real BSR &amp; publish dates — slower)</label>
+  <label class="check"><input type="checkbox" id="offline"> Demo mode (no Amazon requests)</label>
+  <span class="spacer"></span>
+  <span class="hint" id="hintText">Tip: start with 2–3 word buyer keywords. Wide depth finds more, but takes longer.</span>
+</section>
+
+<div id="progress" class="progress hidden">
+  <div class="bar"><i id="progressFill"></i></div>
+  <div class="progress-meta"><span id="progressLabel">Working…</span><span id="progressCount"></span></div>
+</div>
+
+<div id="warnings" class="warnings hidden"></div>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="niches">Niches <span id="countNiches" class="pill">0</span></button>
+  <button class="tab" data-tab="keywords">Keyword ideas <span id="countKeywords" class="pill">0</span></button>
+  <button class="tab" data-tab="saved">Shortlist <span id="countSaved" class="pill">0</span></button>
+  <button class="tab" data-tab="history">History</button>
+  <button class="tab" data-tab="calc">BSR calculator</button>
+</nav>
+
+<main>
+  <section id="tab-niches" class="tabpane active">
+    <div class="filters">
+      <input id="filterText" type="search" placeholder="Filter keywords…">
+      <label>Min score <input id="filterScore" type="range" min="0" max="100" value="0"><b id="filterScoreVal">0</b></label>
+      <label>Max competition <input id="filterComp" type="range" min="0" max="100" value="100"><b id="filterCompVal">100</b></label>
+      <label>Max median reviews <input id="filterRev" type="number" min="0" step="10" placeholder="any"></label>
+      <span class="spacer"></span>
+      <div class="exports">
+        <button class="ghost" data-export="csv">CSV</button>
+        <button class="ghost" data-export="json">JSON</button>
+        <button class="ghost" data-export="md">Markdown</button>
+      </div>
+    </div>
+    <div class="tablewrap">
+      <table id="nicheTable">
+        <thead><tr>
+          <th data-sort="opportunity_score" class="sorted">Niche score</th>
+          <th data-sort="keyword">Keyword</th>
+          <th data-sort="verdict">Verdict</th>
+          <th data-sort="demand_score">Demand</th>
+          <th data-sort="competition_score">Competition</th>
+          <th data-sort="est_royalty_month">Royalties / mo</th>
+          <th data-sort="est_sales_month">Sales / mo</th>
+          <th data-sort="median_reviews">Median reviews</th>
+          <th data-sort="results_count">Competing books</th>
+          <th data-sort="median_price">Price</th>
+          <th></th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="nicheEmpty" class="empty">Run a search to see ranked niches.</p>
+    </div>
+  </section>
+
+  <section id="tab-keywords" class="tabpane">
+    <div class="tablewrap">
+      <table id="kwTable">
+        <thead><tr><th>Keyword</th><th>Search demand</th><th>Suggestion hits</th><th>Best position</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="kwEmpty" class="empty">Keyword ideas from Amazon autocomplete will appear here.</p>
+    </div>
+  </section>
+
+  <section id="tab-saved" class="tabpane">
+    <div class="filters"><span class="hint">Your shortlist is stored locally in a SQLite file, so it survives restarts.</span>
+      <span class="spacer"></span><button class="ghost" id="exportSaved">Export CSV</button></div>
+    <div class="tablewrap">
+      <table id="savedTable">
+        <thead><tr><th>Score</th><th>Keyword</th><th>Market</th><th>Store</th><th>Royalties / mo</th><th>Median reviews</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="savedEmpty" class="empty">Nothing saved yet. Click ☆ on a niche to shortlist it.</p>
+    </div>
+  </section>
+
+  <section id="tab-history" class="tabpane">
+    <div class="tablewrap">
+      <table id="runTable">
+        <thead><tr><th>When</th><th>Seed</th><th>Market</th><th>Store</th><th>Niches</th><th></th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p id="runEmpty" class="empty">Past searches will be listed here.</p>
+    </div>
+  </section>
+
+  <section id="tab-calc" class="tabpane">
+    <div class="calc">
+      <h2>Sales &amp; royalty calculator</h2>
+      <p class="hint">Convert any Best Sellers Rank into an estimated sales and royalty figure, or work backwards from a monthly income target.</p>
+      <div class="calcgrid">
+        <label>Best Sellers Rank <input id="calcBsr" type="number" value="25000" min="1"></label>
+        <label>Store <select id="calcStore"><option value="print">Paperback</option><option value="kindle">Kindle</option></select></label>
+        <label>Marketplace <select id="calcMarket"></select></label>
+        <label>List price <input id="calcPrice" type="number" value="9.99" step="0.5" min="0"></label>
+        <label>Page count <input id="calcPages" type="number" value="120" min="24"></label>
+      </div>
+      <div class="calcout" id="calcOut"></div>
+      <h3>What rank do I need?</h3>
+      <div class="calcgrid one">
+        <label>Target royalties / month <input id="calcTarget" type="number" value="1000" min="1"></label>
+      </div>
+      <div class="calcout" id="calcTargetOut"></div>
+    </div>
+  </section>
+</main>
+
+<aside id="drawer" class="drawer">
+  <div class="drawer-head">
+    <div><h2 id="drawerTitle">—</h2><p id="drawerSub" class="hint"></p></div>
+    <button id="drawerClose" class="ghost">✕</button>
+  </div>
+  <div id="drawerBody" class="drawer-body"></div>
+</aside>
+<div id="scrim" class="scrim"></div>
+
+<dialog id="helpDialog">
+  <h2>How to read this tool</h2>
+  <ul>
+    <li><b>Niche score (0–100)</b> — the headline. It blends demand (42%), the inverse of competition (38%) and profitability (20%). 72+ is a goldmine, under 36 is best avoided.</li>
+    <li><b>Demand</b> — how much money page one actually moves: estimated royalties, median sales per book, and how often Amazon's autocomplete suggests the phrase.</li>
+    <li><b>Competition</b> — lower is better. Built from the review wall on page one, how many competing books exist, how few weak (&lt;50 review) books there are, and how many big publishers hold slots.</li>
+    <li><b>Profitability</b> — price level and royalty per sale after KDP's 60% print / 70% Kindle split and printing costs.</li>
+    <li><b>Royalties / mo</b> — sum of estimated monthly royalties for the analysed books on page one. It is the size of the prize, not your share of it.</li>
+    <li><b>Sales estimates</b> come from a Best Sellers Rank → sales curve, scaled per marketplace. Without deep scan the rank is inferred from search position and review count; turn on <b>Deep scan</b> for real BSRs.</li>
+  </ul>
+  <h3>A workflow that works</h3>
+  <ol>
+    <li>Search a broad seed, sort by niche score.</li>
+    <li>Shortlist anything scoring 60+ with median reviews under ~150.</li>
+    <li>Open the drawer and read page one: if half the books look sloppy, you can beat them.</li>
+    <li>Re-run the winner as its own seed with Wide depth to find sub-niches.</li>
+    <li>Export the CSV and plan your covers and interiors.</li>
+  </ol>
+  <p class="hint">Estimates are directional, not accounting. Amazon publishes no sales data; every KDP tool models it.</p>
+  <form method="dialog"><button class="primary">Got it</button></form>
+</dialog>
+
+<script src="/app.js"></script>
+</body>
+</html>
